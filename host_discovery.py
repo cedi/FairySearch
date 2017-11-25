@@ -50,35 +50,46 @@ from ftplib import FTP
 #                     'version': ''}},
 #       'vendor': {}}
 
-def recursiveFileList(ftp, basedir=None):
-    if(basedir != None):
-        ftp.pwd(basedir)
+def recursiveFileList(ftp, myFiles, adir="."):
+    subDirs = []
+    gotdirs = []
 
-    contentList = []
+    # change dir 
+    ftp.cwd(adir)
 
-    def cbFile(content):
-        contentList.append(content.split()[8]) # hacky but works... equivalent to awk {'print $8'} 
+    # get current dir
+    curdir = ftp.pwd()
 
-    dirs = ftp.dir(cbFile)
+    def cbEnumerateFiles(ln):
+        """
+        callback functino for ftp.retrlines('LIST')
+        """
+        cols = ln.split(' ')
+        objname = cols[len(cols)-1] # get name (same as awk '{print $8}'
 
-    for content in contentList:
-        print content
-        recursiveFileList(ftp, content);
+        if ln.startswith('d'):
+            subDirs.append(objname)
+        else:
+            myFiles.append(os.path.join(curdir, objname)) # full path
+    
+    # get all dirs
+    ftp.retrlines('LIST', cbEnumerateFiles)
+    gotdirs = subDirs
 
-    if contentList.size() > 0:
-        print dirs
-
-    if(basedir != None):
-        fwp.pwd('..')
-
-    return levels;
-
+    for subdir in gotdirs:
+        recursiveFileList(ftp, myFiles, subdir) # recurse  
+      
+    ftp.cwd('..') # up after finishing everything
+  
 def handleFTP(host, port):
     print "### FTP Server is found: {0}:{1}".format(host, port)
     ftp = FTP('ftp1.at.proftpd.org')
     ftp.login()
 
-    recursiveFileList(ftp)
+    myFiles = []
+    recursiveFileList(ftp, myFiles)
+    
+    print(myFiles)
 
 def cbFoundOpenPort(host, port, port_info):
     print "## open port found: {0}:{1}".format(host, port)
@@ -123,11 +134,9 @@ def cbHostUp(host, scan_result):
                 cbFoundOpenPort(host, port, port_info)
 
 if __name__ == "__main__":
-    handleFTP("ftp1.at.proftpd.org", 21)
+    nma.scan(hosts='94.45.232.73/21', arguments='-sP', callback=cbHostUp)
 
-    # nma.scan(hosts='94.45.232.73/21', arguments='-sP', callback=cbHostUp)
-
-    # while nma.still_scanning():
-    #    nma.wait(2)
+    while nma.still_scanning():
+       nma.wait(2)
 
 
