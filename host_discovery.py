@@ -3,20 +3,12 @@
 import sys
 import os
 
-import nmap                         # import nmap.py module
-try:
-    nm = nmap.PortScanner()         # instantiate nmap.PortScanner object
-except nmap.PortScannerError:
-    print('Nmap not found', sys.exc_info()[0])
-    sys.exit(1)
-except:
-    print("Unexpected error:", sys.exc_info()[0])
-    sys.exit(1)
-
+import nmap # import nmap.py module
+from ftplib import FTP
 
 # Data structure looks like :
 #
-#      {'addresses': {'ipv4': '192.168.43.34'},
+#      {'addresses': {'ipv4': '127.0.0.1'},
 #       'hostnames': [],
 #       'osmatch': [{'accuracy': '98',
 #                    'line': '36241',
@@ -58,86 +50,84 @@ except:
 #                     'version': ''}},
 #       'vendor': {}}
 
+def recursiveFileList(ftp, basedir=None):
+    if(basedir != None):
+        ftp.pwd(basedir)
 
+    contentList = []
 
-#nm.scan('192.168.43.34', '22-443')      # scan host 192.168.43.34, ports from 22 to 443
-#nm.command_line()                   # get command line used for the scan : nmap -oX - -p 22-443 192.168.43.34
-#nm.scaninfo()                       # get nmap scan informations {'tcp': {'services': '22-443', 'method': 'connect'}}
-#nm.all_hosts()                      # get all hosts that were scanned
-#nm['192.168.43.34'].hostname()          # get one hostname for host 192.168.43.34, usualy the user record
-#nm['192.168.43.34'].hostnames()         # get list of hostnames for host 192.168.43.34 as a list of dict [{'name':'hostname1', 'type':'PTR'}, {'name':'hostname2', 'type':'user'}]
-#nm['192.168.43.34'].state()             # get state of host 192.168.43.34 (up|down|unknown|skipped) 
-#nm['192.168.43.34'].all_protocols()     # get all scanned protocols ['tcp', 'udp'] in (ip|tcp|udp|sctp)
-#if ('tcp' in nm['192.168.43.34']):
-#    list(nm['192.168.43.34']['tcp'].keys()) # get all ports for tcp protocol
-#
-#nm['192.168.43.34'].all_tcp()           # get all ports for tcp protocol (sorted version)
-#nm['192.168.43.34'].all_udp()           # get all ports for udp protocol (sorted version)
-#nm['192.168.43.34'].all_ip()            # get all ports for ip protocol (sorted version)
-#nm['192.168.43.34'].all_sctp()          # get all ports for sctp protocol (sorted version)
-#if nm['192.168.43.34'].has_tcp(22):     # is there any information for port 22/tcp on host 192.168.43.34
-#    nm['192.168.43.34']['tcp'][22]          # get infos about port 22 in tcp on host 192.168.43.34
-#    nm['192.168.43.34'].tcp(22)             # get infos about port 22 in tcp on host 192.168.43.34
-#    nm['192.168.43.34']['tcp'][22]['state'] # get state of port 22/tcp on host 192.168.43.34 (open
-#
-#
-## a more usefull example :
-#for host in nm.all_hosts():
-#    print('----------------------------------------------------')
-#    print('Host : {0} ({1})'.format(host, nm[host].hostname()))
-#    print('State : {0}'.format(nm[host].state()))
-#
-#    for proto in nm[host].all_protocols():
-#        print('----------')
-#        print('Protocol : {0}'.format(proto))
-#
-#        lport = list(nm[host][proto].keys())
-#        lport.sort()
-#        for port in lport:
-#            print('port : {0}\tstate : {1}'.format(port, nm[host][proto][port]))
-#
-#print('----------------------------------------------------')
+    def cbFile(content):
+        contentList.append(content.split()[8]) # hacky but works... equivalent to awk {'print $8'} 
+
+    dirs = ftp.dir(cbFile)
+
+    for content in contentList:
+        print content
+        recursiveFileList(ftp, content);
+
+    if contentList.size() > 0:
+        print dirs
+
+    if(basedir != None):
+        fwp.pwd('..')
+
+    return levels;
+
+def handleFTP(host, port):
+    print "### FTP Server is found: {0}:{1}".format(host, port)
+    ftp = FTP('ftp1.at.proftpd.org')
+    ftp.login()
+
+    recursiveFileList(ftp)
+
+def cbFoundOpenPort(host, port, port_info):
+    print "## open port found: {0}:{1}".format(host, port)
+    print('host: {0}, port: {1}, state : {2}'.format(host, port, port_info))
+
+    if port != "21":
+        print " $$ Currently only FTP is supported"
+        return
+
+    handleFTP(host, port)
 
 nma = nmap.PortScannerAsync()
 
-def callback_result(host, results):
-    """
-    Async Callback per host
+def cbHostUp(host, scan_result):
+    if scan_result['nmap']['scanstats']['uphosts'] == "0":
+        return
 
-    This handler will process the scan results per host
+    if scan_result['scan'][host]['status']['state'] != 'up':
+        return
 
-    :param host: the ip address fo the scanned host 
-    :param results: the scan result as a dictionary
+    print '# Host "{0}" found, scanning for ports...'.format(host)
 
-    :returns: nothing
-    """
+    try:
+        nm = nmap.PortScanner()         # instantiate nmap.PortScanner object
+    except nmap.PortScannerError:
+        print('Nmap not found', sys.exc_info()[0])
+        sys.exit(1)
+    except:
+        print("Unexpected error:", sys.exc_info()[0])
+        sys.exit(1)
 
-    scan_results = results['scan']
+    nm.scan(host, '21')
+    for host in nm.all_hosts():
+        if nm[host].state() != 'up':
+            continue
 
-    # check the scan results if a host is up, then procceed
-    for host in scan_results:
-        scan_result = scan_results[host]
+        lport = list(nm[host].all_tcp())
+        lport.sort()
+        for port in lport:
+            port_info = nm[host]['tcp'][port]
+            if port_info['state'] == 'open':
+                cbFoundOpenPort(host, port, port_info)
 
-        # get the host state (if it's up or if it's down
-        host_status = scan_result['status']['state']
+if __name__ == "__main__":
+    handleFTP("ftp1.at.proftpd.org", 21)
 
-        # if the host state is up
-        if host_status == "up":
-            print "host: %s , status: %s" % (host, host_status)
+    # nma.scan(hosts='94.45.232.73/21', arguments='-sP', callback=cbHostUp)
 
+    # while nma.still_scanning():
+    #    nma.wait(2)
 
-# Scan the specified subnet
-
-# ~~~~~~~~ TODO ~~~~~~~~
-# create a patch for the Async Callback, to specify an additional parameter
-# thats passed to the callback every time a callback is called.
-# This could be used for eg. a additional callback that's called from within
-# the callback. I need this for more async handling of a scan result for eg.
-# when a scanned host is up, to move all those functionality into another
-# separated function
-# ~~~~~~~~ / ~~~~~~~~
-nma.scan(hosts='127.0.0.1', arguments='-sP', callback=callback_result)
-
-# wait until all async scanns are done
-nma.wait()
 
