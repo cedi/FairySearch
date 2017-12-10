@@ -5,7 +5,14 @@ import os
 
 from ftplib import FTP
 
-def walk_recursive(ftp, myFiles, adir="."):
+def walk_recursive(ftp, file_list, adir="."):
+    """
+    walkes recursively through the ftp file structure
+
+    :param ftp: the FTP object
+    :param file_list: a list which all files
+    :param adir: the current working dir
+    """
     subDirs = []
     gotdirs = []
 
@@ -17,7 +24,9 @@ def walk_recursive(ftp, myFiles, adir="."):
 
     def cb_enumerate_files(ln):
         """
-        callback functino for ftp.retrlines('LIST')
+        callback function for ftp.retrlines('LIST')
+
+        :param ln: the file list for the crawled folder
         """
         cols = ln.split(' ')
         objname = cols[len(cols)-1] # get name (same as awk '{print $8}'
@@ -25,24 +34,34 @@ def walk_recursive(ftp, myFiles, adir="."):
         if ln.startswith('d'):
             subDirs.append(objname)
         else:
-            myFiles.append(os.path.join(curdir, objname)) # full path
+            file_list.append(os.path.join(curdir, objname)) # full path
 
     # get all dirs
     ftp.retrlines('LIST', cbEnumerateFiles)
     gotdirs = subDirs
 
     for subdir in gotdirs:
-        recursiveFileList(ftp, myFiles, subdir) # recurse
+        recursiveFileList(ftp, file_list, subdir) # recurse
 
-    ftp.cwd('..') # up after finishing everything
+    # up after finishing everything
+    ftp.cwd('..')
 
 def walk_ftp_server(host, port=21):
+    """
+    Entry point for ftp_walker.
+    Tries to connect to a server and then walks through all folders in order to
+    crawl all existing files.
+
+    :param host: the ftp host
+    :param port: the port on which we try to connect. Currently not supported
+    """
     print "### FTP Server is found: {0}:{1}".format(host, port)
+
     ftp = FTP(host)
     ftp.login()
 
-    myFiles = []
-    walk_recursive(ftp, myFiles)
+    file_list = []
+    walk_recursive(ftp, file_list)
 
-    print(myFiles)
+    print(file_list)
 
