@@ -49,27 +49,27 @@ import nmap
 #                     'version': ''}},
 #       'vendor': {}}
 
-def cbFoundOpenPort(host, port, port_info):
-    print "## open port found: {0}:{1}".format(host, port)
+def cb_open_port(host, port, port_info):
+    print("## open port found: {0}:{1}".format(host, port))
     print('host: {0}, port: {1}, state : {2}'.format(host, port, port_info))
 
     if port == "21":
         scanFTP(host, port)
 
-    print " $$ Port {0} is currently not supported".format(port)
+    print(" $$ Port {0} is currently not supported".format(port))
 
 
-def cbHostUp(host, scan_result):
+def cb_host(host, scan_result):
     if scan_result['nmap']['scanstats']['uphosts'] == "0":
         return
 
     if scan_result['scan'][host]['status']['state'] != 'up':
         return
 
-    print '# Host "{0}" found, scanning for ports...'.format(host)
+    print('# Host "{0}" found, scanning for ports...'.format(host))
 
     try:
-        nm = nmap.PortScanner()         # instantiate nmap.PortScanner object
+        nm = nmap.PortScanner() # instantiate nmap.PortScanner object
     except nmap.PortScannerError:
         print('Nmap not found', sys.exc_info()[0])
         sys.exit(1)
@@ -87,11 +87,11 @@ def cbHostUp(host, scan_result):
         for port in lport:
             port_info = nm[host]['tcp'][port]
             if port_info['state'] == 'open':
-                cbFoundOpenPort(host, port, port_info)
+                cb_open_port(host, port, port_info)
 
-def scanNetwork(network):
+def scan(network):
     nma = nmap.PortScannerAsync()
-    nma.scan(hosts=network, arguments='-sP', callback=cbHostUp)
+    nma.scan(hosts=network, arguments='-sP', callback=cb_host)
 
     while nma.still_scanning():
        nma.wait(2)
