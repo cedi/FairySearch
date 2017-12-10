@@ -37,11 +37,11 @@ def walk_recursive(ftp, file_list, adir="."):
             file_list.append(os.path.join(curdir, objname)) # full path
 
     # get all dirs
-    ftp.retrlines('LIST', cbEnumerateFiles)
+    ftp.retrlines('LIST', cb_enumerate_files)
     gotdirs = subDirs
 
     for subdir in gotdirs:
-        recursiveFileList(ftp, file_list, subdir) # recurse
+        walk_recursive(ftp, file_list, subdir) # recurse
 
     # up after finishing everything
     ftp.cwd('..')
@@ -55,7 +55,7 @@ def walk_ftp_server(host, port=21):
     :param host: the ftp host
     :param port: the port on which we try to connect. Currently not supported
     """
-    print "### FTP Server is found: {0}:{1}".format(host, port)
+    print("### FTP Server is found: {0}:{1}".format(host, port))
 
     ftp = FTP(host)
     ftp.login()
@@ -65,3 +65,7 @@ def walk_ftp_server(host, port=21):
 
     print(file_list)
 
+if __name__ == "__main__":
+    # Test code
+
+    walk_ftp_server("90.130.70.73")
