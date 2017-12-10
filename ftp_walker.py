@@ -4,6 +4,7 @@ import sys
 import os
 
 from ftplib import FTP
+from database import save_ftp_server
 
 def walk_recursive(ftp, file_list, adir="."):
     """
@@ -63,7 +64,7 @@ def walk_ftp_server(host, port=21):
     file_list = []
     walk_recursive(ftp, file_list)
 
-    print(file_list)
+    save_ftp_server(host, port, file_list)
 
 if __name__ == "__main__":
     # Test code
