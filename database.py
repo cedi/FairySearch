@@ -15,8 +15,6 @@ def __save_server(ftp_server, host, port):
     ports = set()
     if host in ftp_server:
         ports = ftp_server[host]
-    else:
-        ports = set()
 
     ports.add(port)
     ftp_server[host] = ports
@@ -30,8 +28,8 @@ def __save_files(file_list, host, files):
     :param files: the files found on the ftp server
     """
     for file_path in files:
-        filename = path.basename(file_path) # TODO: get only the filename
-        filename, extension = path.splitext(filename) # TODO: get only the extension
+        filename = path.basename(file_path)
+        filename, extension = path.splitext(filename)
         filename_with_ext = filename + extension
 
         file_object = dict()
@@ -57,7 +55,7 @@ def __save_files(file_list, host, files):
         server_host = dict()
 
         if host in server:
-            host = server[host]
+            server_host = server[host]
 
         # always set the path, so in case the file is moved we always have the
         # newest path
@@ -95,4 +93,9 @@ def save_ftp_server(host, port, files):
     print(file_list)
 
 if __name__ == "__main__":
-    pass
+    import json
+
+    data_str = '{"1000GB.zip": {"filename": "1000GB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/1000GB.zip", "scan_date": 1512940989.0349853}}}, "100GB.zip": {"filename": "100GB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/100GB.zip", "scan_date": 1512940989.0350099}}}, "100KB.zip": {"filename": "100KB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/100KB.zip", "scan_date": 1512940989.0350497}}}, "100MB.zip": {"filename": "100MB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/100MB.zip", "scan_date": 1512940989.0350645}}}, "10GB.zip": {"filename": "10GB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/10GB.zip", "scan_date": 1512940989.035082}}}, "10MB.zip": {"filename": "10MB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/10MB.zip", "scan_date": 1512940989.0350947}}}, "1GB.zip": {"filename": "1GB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/1GB.zip", "scan_date": 1512940989.0351102}}}, "1KB.zip": {"filename": "1KB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/1KB.zip", "scan_date": 1512940989.0351198}}}, "1MB.zip": {"filename": "1MB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/1MB.zip", "scan_date": 1512940989.0351331}}}, "200MB.zip": {"filename": "200MB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/200MB.zip", "scan_date": 1512940989.0351427}}}, "20MB.zip": {"filename": "20MB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/20MB.zip", "scan_date": 1512940989.035473}}}, "2MB.zip": {"filename": "2MB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/2MB.zip", "scan_date": 1512940989.0354888}}}, "3MB.zip": {"filename": "3MB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/3MB.zip", "scan_date": 1512940989.0354984}}}, "500MB.zip": {"filename": "500MB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/500MB.zip", "scan_date": 1512940989.0355082}}}, "50MB.zip": {"filename": "50MB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/50MB.zip", "scan_date": 1512940989.0355172}}}, "512KB.zip": {"filename": "512KB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/512KB.zip", "scan_date": 1512940989.035526}}}, "5MB.zip": {"filename": "5MB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/5MB.zip", "scan_date": 1512940989.0355427}}}}' 
+    data = json.loads(data_str)
+
+    save_ftp_server("1.2.3.4", 21, data)

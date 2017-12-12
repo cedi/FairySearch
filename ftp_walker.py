@@ -47,7 +47,7 @@ def walk_recursive(ftp, file_list, adir="."):
     # up after finishing everything
     ftp.cwd('..')
 
-def walk_ftp_server(host, port=21):
+def walk(host, port=21):
     """
     Entry point for ftp_walker.
     Tries to connect to a server and then walks through all folders in order to

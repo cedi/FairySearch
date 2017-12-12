@@ -4,10 +4,8 @@ import sys
 import os
 
 import nmap
+import ftp_walker
 from util import eprint
-
-# Data structure looks like :
-#
 
 def cb_open_port(host, port, port_info):
     """
@@ -23,8 +21,8 @@ def cb_open_port(host, port, port_info):
     print("## open port found: {0}:{1}".format(host, port))
     print('host: {0}, port: {1}, state : {2}'.format(host, port, port_info))
 
-    if port == "21":
-        scanFTP(host, port)
+    if 21 == port:
+        ftp_walker.walk(host, port)
     else:
         eprint(" $$ Port {0} is currently not supported".format(port))
 
