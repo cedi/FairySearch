@@ -22,9 +22,11 @@ def cb_open_port(host, port, port_info):
     print('host: {0}, port: {1}, state : {2}'.format(host, port, port_info))
 
     if 21 == port:
-        ftp_walker.walk(host, port)
+        #ftp_walker.walk(host, port)
+        print("FTP-Server: {0}".format(host))
     else:
-        eprint(" $$ Port {0} is currently not supported".format(port))
+        pass
+        #eprint(" $$ Port {0} is currently not supported".format(port))
 
 
 def cb_host(host, scan_result):
@@ -86,15 +88,15 @@ def cb_host(host, scan_result):
     if scan_result['scan'][host]['status']['state'] != 'up':
         return 2
 
-    print('# Host "{0}" found, scanning for ports...'.format(host))
+    # print('# Host "{0}" found, scanning for ports...'.format(host))
 
     try:
         nm = nmap.PortScanner() # instantiate nmap.PortScanner object
     except nmap.PortScannerError:
-        print('Nmap not found', sys.exc_info()[0])
+        eprint('Nmap not found', sys.exc_info()[0])
         return 3
     except:
-        print("Unexpected error:", sys.exc_info()[0])
+        eprint("Unexpected error:", sys.exc_info()[0])
         return 4
 
     nm.scan(host, '1-443')
