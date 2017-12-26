@@ -2,6 +2,24 @@
 
 import time
 from os import path
+from pymongo import MongoClient
+import json
+
+def __is_server_existing__(document, host, port):
+    """
+    Validates if a server with given host(url) and port is already existing in
+    the document
+
+    :param document: the document to check in
+    :param host: the host which is searched inside the document
+    :param port: the port which is searched inside the document
+    """
+    for server in document["server"]:
+        if host == server["url"] and port == server["port"]:
+            return True
+
+    return False
+
 
 def __save_server(ftp_server, host, port):
     """
@@ -12,14 +30,16 @@ def __save_server(ftp_server, host, port):
     :param port: the port on which the ftp server is running
     """
 
-    ports = set()
-    if host in ftp_server:
-        ports = ftp_server[host]
+    result = ftp_server.find({"host": host})
+    if 0 < result.count():
+        if port not in result[0]["ports"]:
+            document = { "ports": port }
+            ftp_server.update({ "host" : host}, { "$push": document } )
+    else:
+        document = { "host" : host, "ports" : [port] }
+        ftp_server.insert(document)
 
-    ports.add(port)
-    ftp_server[host] = ports
-
-def __save_files(file_list, host, files):
+def __save_files(file_list, host, port, files):
     """
     Stores the files associated to the server to the file_list object
 
@@ -30,48 +50,36 @@ def __save_files(file_list, host, files):
     for file_path in files:
         filename = path.basename(file_path)
         filename, extension = path.splitext(filename)
-        filename_with_ext = filename + extension
 
-        file_object = dict()
+        result = file_list.find({ "filename": filename })
 
-        if filename_with_ext in file_list:
-            file_object = file_list[filename_with_ext]
+        if 0 < result.count():
+            if __is_server_existing__(result[0], host, port):
+                continue
 
-        if "filename" not in file_object:
-            file_object["filename"] = filename;
+            document = {
+                "url" : host,
+                "port": port,
+                "extension" : extension,
+                "path" : file_path,
+                "scan_date" : time.time()
+            }
 
-        if "extension" not in file_object:
-            file_object["extension"] = extension
-
-        # check if the server already exists in the object, if not create an
-        # empty dict
-        server = dict()
-
-        if "server" in file_object:
-            server = file_object["server"]
-
-        # check if the server_host exists inside the server object, if not
-        # create an empty dict
-        server_host = dict()
-
-        if host in server:
-            server_host = server[host]
-
-        # always set the path, so in case the file is moved we always have the
-        # newest path
-        server_host["path"] = file_path
-
-        # always set the scan_date to now
-        server_host["scan_date"] = time.time()
-
-        # write the server_host back to the server dict
-        server[host] = server_host
-
-        # write the server dictionary back to the file_object
-        file_object["server"] = server
-
-        file_list[filename_with_ext] = file_object
-
+            file_list.update({ "filename" : filename}, { "$push": { "server": document } } )
+        else:
+            document = {
+                        "filename" : filename,
+                        "server" : [
+                            {
+                                "url" : host,
+                                "port": port,
+                                "extension" : extension,
+                                "path" : file_path,
+                                "scan_date" : time.time()
+                            }
+                        ]
+                    }
+            file_list.insert(document)
 
 def save_ftp_server(host, port, files):
     """
@@ -82,20 +90,22 @@ def save_ftp_server(host, port, files):
     :param files: files on the ftp server
     """
 
-    # TODO: Replace with MongoDB Objects
-    ftp_server = dict()
-    file_list = dict()
+    # Connect to MongoDB and get the database
+    mongo = MongoClient("mongodb://127.0.0.1:27019")
+    db = mongo['metadata']
+
+    # Get the base dictionaries, where i save the data
+    ftp_server = db.ftp_server
+    file_list = db.file_list
 
     __save_server(ftp_server, host, port)
-    print(ftp_server)
+    __save_files(file_list, host, port, files)
 
-    __save_files(file_list, host, files)
-    print(file_list)
-
+# Some testing code
 if __name__ == "__main__":
-    import json
-
-    data_str = '{"1000GB.zip": {"filename": "1000GB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/1000GB.zip", "scan_date": 1512940989.0349853}}}, "100GB.zip": {"filename": "100GB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/100GB.zip", "scan_date": 1512940989.0350099}}}, "100KB.zip": {"filename": "100KB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/100KB.zip", "scan_date": 1512940989.0350497}}}, "100MB.zip": {"filename": "100MB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/100MB.zip", "scan_date": 1512940989.0350645}}}, "10GB.zip": {"filename": "10GB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/10GB.zip", "scan_date": 1512940989.035082}}}, "10MB.zip": {"filename": "10MB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/10MB.zip", "scan_date": 1512940989.0350947}}}, "1GB.zip": {"filename": "1GB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/1GB.zip", "scan_date": 1512940989.0351102}}}, "1KB.zip": {"filename": "1KB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/1KB.zip", "scan_date": 1512940989.0351198}}}, "1MB.zip": {"filename": "1MB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/1MB.zip", "scan_date": 1512940989.0351331}}}, "200MB.zip": {"filename": "200MB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/200MB.zip", "scan_date": 1512940989.0351427}}}, "20MB.zip": {"filename": "20MB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/20MB.zip", "scan_date": 1512940989.035473}}}, "2MB.zip": {"filename": "2MB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/2MB.zip", "scan_date": 1512940989.0354888}}}, "3MB.zip": {"filename": "3MB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/3MB.zip", "scan_date": 1512940989.0354984}}}, "500MB.zip": {"filename": "500MB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/500MB.zip", "scan_date": 1512940989.0355082}}}, "50MB.zip": {"filename": "50MB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/50MB.zip", "scan_date": 1512940989.0355172}}}, "512KB.zip": {"filename": "512KB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/512KB.zip", "scan_date": 1512940989.035526}}}, "5MB.zip": {"filename": "5MB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/5MB.zip", "scan_date": 1512940989.0355427}}}}' 
+    data_str = '{"1000GB.zip": {"filename": "1000GB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/1000GB.zip", "scan_date": 1512940989.0349853}}}, "100GB.zip": {"filename": "100GB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/100GB.zip", "scan_date": 1512940989.0350099}}}, "100KB.zip": {"filename": "100KB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/100KB.zip", "scan_date": 1512940989.0350497}}}, "100MB.zip": {"filename": "100MB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/100MB.zip", "scan_date": 1512940989.0350645}}}, "10GB.zip": {"filename": "10GB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/10GB.zip", "scan_date": 1512940989.035082}}}, "10MB.zip": {"filename": "10MB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/10MB.zip", "scan_date": 1512940989.0350947}}}, "1GB.zip": {"filename": "1GB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/1GB.zip", "scan_date": 1512940989.0351102}}}, "1KB.zip": {"filename": "1KB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/1KB.zip", "scan_date": 1512940989.0351198}}}, "1MB.zip": {"filename": "1MB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/1MB.zip", "scan_date": 1512940989.0351331}}}, "200MB.zip": {"filename": "200MB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/200MB.zip", "scan_date": 1512940989.0351427}}}, "20MB.zip": {"filename": "20MB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/20MB.zip", "scan_date": 1512940989.035473}}}, "2MB.zip": {"filename": "2MB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/2MB.zip", "scan_date": 1512940989.0354888}}}, "3MB.zip": {"filename": "3MB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/3MB.zip", "scan_date": 1512940989.0354984}}}, "500MB.zip": {"filename": "500MB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/500MB.zip", "scan_date": 1512940989.0355082}}}, "50MB.zip": {"filename": "50MB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/50MB.zip", "scan_date": 1512940989.0355172}}}, "512KB.zip": {"filename": "512KB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/512KB.zip", "scan_date": 1512940989.035526}}}, "5MB.zip": {"filename": "5MB", "extension": ".zip", "server": {"90.130.70.73": {"path": "/5MB.zip", "scan_date": 1512940989.0355427}}}}'
     data = json.loads(data_str)
 
     save_ftp_server("1.2.3.4", 21, data)
+    save_ftp_server("1.2.3.4", 31, data)
+    save_ftp_server("4.5.6.7", 21, data)
