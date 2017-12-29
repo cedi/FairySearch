@@ -3,4 +3,4 @@
 from network_scan import scan
 
 if __name__ == "__main__":
-    scan('90.130.70.73')
+    scan('151.217.215.13/18')
